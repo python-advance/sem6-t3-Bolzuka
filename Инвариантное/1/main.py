@@ -2,10 +2,8 @@ from urllib.request import urlopen
 from xml.etree import ElementTree as ET
 import time
 
-def get_currencies(currencies_ids_lst=['R01235', 'R01239', 'R01820']):
-    """
-    функция позволяет получать данные о текущих курсах валют с сайта Центробанка РФ
-    """
+
+def get_currencies(currencies_ids_lst=['R01239', 'R01235', 'R01035']):
     cur_res_str = urlopen("http://www.cbr.ru/scripts/XML_daily.asp")
     result = {}
     cur_res_xml = ET.parse(cur_res_str)
@@ -19,27 +17,41 @@ def get_currencies(currencies_ids_lst=['R01235', 'R01239', 'R01820']):
     time.clock()
     return result
 
+
+def singleton(cls):
+    """
+    Пример реализации одиночки на Python по материалам лекции
+    """
+    instances = {}
+    def get_instance():
+        if cls not in instances:
+            instances[cls] = cls()
+        return instances[cls]
+    return get_instance
+
+
+@singleton
 class CurrencyBoard():
     """
-    класс-синглтон
-
+    Создание класса-синглтон/одиночки
     """
     def __init__(self):
         """
-        храним данные о валютах
+        Инициализируем переменные
+        Храним данные о валютах
         """
         self.currencies = ['R01235','R01239','R01820']
         self.rates = get_currencies(self.currencies)
 
-    def get_currency_from_cache(self, code):
+    def get_currency_saving(self, code):
         """
-        получаем информацию о всех сохраненных в кэше валютах без запроса к сайту
+        Метод для получения информации о всех сохраненных в кэше валютах без запроса к сайту
         """
-        return self.currencies[code]
+        return self.rates.setdefault(code)
 
     def get_new_currency(self, code):
         """
-        запрашиваем информацию о курсах новой валюты (с получением свежих данных с сервера) и добавляем её в кэш
+        Метод о запросе курса новой валюты (с получением свежих данных с сервера) и добавлением её в кэш
         """
         self.currencies.append(code)
         self.rates.update(get_currencies([code]))
@@ -47,24 +59,22 @@ class CurrencyBoard():
 
     def update(self):
         """
-        принудительно обновляем данных о валютах
+        Метод класса для принудительного обновления данных о валютах
         """
-        new_val = get_currencies(self.currencies)
-        self.rates.update(dict(zip(sorted(self.currencies),new_val.values())))
+        self.rates.clear()
+        self.rates = get_currencies(self.currencies)
         return self.rates
 
     def check(self):
         """
-        проводим проверку времени
-        (если прошло больше 5 минут с момента последней загрузки,
-         то запрос к серверу отправлялся, в другом случае
-         запрос не отпраавляется и значение берется из прошлго запроса(из кэша))
+        Метод проверки загружены ли данные и если прошло 
+        больше 5 минут с момента последней загрузки, то отправлялся бы запрос к серверу
         """
-        if (time.clock() > 5*60):
-            return get_currencies(self.currencies)
+        if (time.clock() > 300):
+            return self.update()
         else:
-            print('Last update was made less than 5 minutes ago')
+            print('Прошло слишком мало времени, последнее обновление было меньше 5-и минут назад')
 
-cur_vals = get_currencies()
 
-print("\ndollar = USD = R01235 \neuro = EUR = R01239 \niena = GBP = R01820  \n", cur_vals)
+#data = CurrencyBoard()
+#print('Курс валюты:', data.rates)
